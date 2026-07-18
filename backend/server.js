@@ -1,31 +1,36 @@
 const express = require('express');
 const cors = require('cors');
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const db = require('./database');  // ← PAKAI database.js
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
+// ===== MIDDLEWARE =====
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
-    credentials: true
+    origin: [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:5500',
+        'http://127.0.0.1:5500',
+        'http://localhost:5501',
+        'http://127.0.0.1:5501',
+        'http://localhost:8080',
+        'http://127.0.0.1:8080'
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
 // ===== DATABASE SETUP =====
-const db = new sqlite3.Database('./database/readlib.db', (err) => {
-    if (err) {
-        console.error('❌ Database connection error:', err.message);
-    } else {
-        console.log('✅ Connected to SQLite database');
-        initDatabase();
-    }
-});
-
 function initDatabase() {
+    console.log('📦 Initializing database tables...');
+    
     // Users table
     db.run(`
         CREATE TABLE IF NOT EXISTS users (
@@ -38,9 +43,12 @@ function initDatabase() {
             avatar TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
-    `);
+    `, (err) => {
+        if (err) console.error('Error creating users table:', err.message);
+        else console.log('✅ Users table ready');
+    });
 
-    // Books table (master data)
+    // Books table
     db.run(`
         CREATE TABLE IF NOT EXISTS books (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,7 +61,10 @@ function initDatabase() {
             synopsis TEXT,
             year INTEGER
         )
-    `);
+    `, (err) => {
+        if (err) console.error('Error creating books table:', err.message);
+        else console.log('✅ Books table ready');
+    });
 
     // User collection
     db.run(`
@@ -66,7 +77,10 @@ function initDatabase() {
             FOREIGN KEY (book_id) REFERENCES books(id),
             UNIQUE(user_id, book_id)
         )
-    `);
+    `, (err) => {
+        if (err) console.error('Error creating collections table:', err.message);
+        else console.log('✅ Collections table ready');
+    });
 
     // Reading progress
     db.run(`
@@ -81,7 +95,10 @@ function initDatabase() {
             FOREIGN KEY (book_id) REFERENCES books(id),
             UNIQUE(user_id, book_id)
         )
-    `);
+    `, (err) => {
+        if (err) console.error('Error creating reading_progress table:', err.message);
+        else console.log('✅ Reading_progress table ready');
+    });
 
     // Bookmarks
     db.run(`
@@ -96,7 +113,10 @@ function initDatabase() {
             FOREIGN KEY (user_id) REFERENCES users(id),
             FOREIGN KEY (book_id) REFERENCES books(id)
         )
-    `);
+    `, (err) => {
+        if (err) console.error('Error creating bookmarks table:', err.message);
+        else console.log('✅ Bookmarks table ready');
+    });
 
     // Notifications
     db.run(`
@@ -110,16 +130,21 @@ function initDatabase() {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
-    `);
+    `, (err) => {
+        if (err) console.error('Error creating notifications table:', err.message);
+        else console.log('✅ Notifications table ready');
+    });
 
-    // Seed initial books if empty
+    // Check if books table is empty and seed
     db.get('SELECT COUNT(*) as count FROM books', (err, row) => {
         if (err) {
             console.error('Error checking books:', err.message);
             return;
         }
-        if (row.count === 0) {
+        if (row && row.count === 0) {
             seedBooks();
+        } else if (row) {
+            console.log(`📚 ${row.count} books already in database`);
         }
     });
 }
@@ -142,11 +167,14 @@ function seedBooks() {
     `);
 
     books.forEach(book => {
-        stmt.run(book.title, book.author, book.genre, book.rating, book.cover, book.pages, book.synopsis, book.year);
+        stmt.run(book.title, book.author, book.genre, book.rating, book.cover, book.pages, book.synopsis, book.year, (err) => {
+            if (err) console.error('Error seeding book:', err.message);
+        });
     });
 
-    stmt.finalize();
-    console.log('✅ Seed books added successfully');
+    stmt.finalize(() => {
+        console.log(`✅ ${books.length} seed books added successfully`);
+    });
 }
 
 // ===== ROUTES =====
@@ -162,14 +190,40 @@ app.use('/api/collections', collectionRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/profile', profileRoutes);
 
+// ===== TEST ROUTE =====
+app.get('/api/test', (req, res) => {
+    res.json({ 
+        status: 'OK', 
+        message: 'Backend is running!',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// ===== 404 HANDLER =====
+app.use((req, res) => {
+    res.status(404).json({ 
+        error: 'Route not found',
+        path: req.originalUrl 
+    });
+});
+
 // ===== ERROR HANDLING =====
 app.use((err, req, res, next) => {
     console.error('❌ Server Error:', err.stack);
-    res.status(500).json({ error: 'Something went wrong!' });
+    res.status(500).json({ 
+        error: 'Internal server error',
+        message: err.message 
+    });
 });
 
+// ===== START SERVER =====
 app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`📚 API base URL: http://localhost:${PORT}/api`);
+    console.log(`🧪 Test endpoint: http://localhost:${PORT}/api/test`);
+    
+    // Initialize database after server starts
+    initDatabase();
 });
 
-module.exports = { db };
+module.exports = { db, app };

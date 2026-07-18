@@ -1,23 +1,31 @@
+// ===== KONFIGURASI =====
 const API_URL = 'http://localhost:5000/api';
 
 let authToken = null;
 
-export function setAuthToken(token) {
+// ===== TOKEN MANAGEMENT =====
+function setAuthToken(token) {
     authToken = token;
     if (token) {
         localStorage.setItem('readlib_token', token);
+        console.log('✅ Token saved to localStorage');
     } else {
         localStorage.removeItem('readlib_token');
+        console.log('🗑️ Token removed from localStorage');
     }
 }
 
-export function getAuthToken() {
+function getAuthToken() {
     if (!authToken) {
         authToken = localStorage.getItem('readlib_token');
+        if (authToken) {
+            console.log('📋 Token loaded from localStorage');
+        }
     }
     return authToken;
 }
 
+// ===== API REQUEST =====
 async function apiRequest(endpoint, options = {}) {
     const token = getAuthToken();
     const headers = {
@@ -27,24 +35,37 @@ async function apiRequest(endpoint, options = {}) {
 
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
+        console.log('🔑 Using auth token');
     }
 
-    const response = await fetch(`${API_URL}${endpoint}`, {
-        ...options,
-        headers
-    });
+    const url = `${API_URL}${endpoint}`;
+    console.log(`📡 ${options.method || 'GET'} ${url}`);
 
-    const data = await response.json();
+    try {
+        const response = await fetch(url, {
+            ...options,
+            headers
+        });
 
-    if (!response.ok) {
-        throw new Error(data.error || 'API request failed');
+        console.log(`📡 Response status: ${response.status}`);
+
+        const data = await response.json();
+        console.log(`📡 Response data:`, data);
+
+        if (!response.ok) {
+            throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
+        return data;
+    } catch (error) {
+        console.error('❌ API Error:', error);
+        throw error;
     }
-
-    return data;
 }
 
 // ===== AUTH =====
-export async function login(email, password) {
+async function login(email, password) {
+    console.log('🔐 Login attempt for:', email);
     const data = await apiRequest('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password })
@@ -53,7 +74,8 @@ export async function login(email, password) {
     return data;
 }
 
-export async function register(name, email, password, bio = '', location = '') {
+async function register(name, email, password, bio = '', location = '') {
+    console.log('📝 Register attempt for:', email);
     const data = await apiRequest('/auth/register', {
         method: 'POST',
         body: JSON.stringify({ name, email, password, bio, location })
@@ -62,55 +84,56 @@ export async function register(name, email, password, bio = '', location = '') {
     return data;
 }
 
-export function logout() {
+function logout() {
+    console.log('🚪 Logout');
     setAuthToken(null);
 }
 
 // ===== BOOKS =====
-export async function getBooks() {
+async function getBooks() {
     return await apiRequest('/books');
 }
 
-export async function getBook(id) {
+async function getBook(id) {
     return await apiRequest(`/books/${id}`);
 }
 
-export async function searchBooks(query) {
+async function searchBooks(query) {
     return await apiRequest(`/books/search/${encodeURIComponent(query)}`);
 }
 
-export async function getBooksByGenre(genre) {
+async function getBooksByGenre(genre) {
     return await apiRequest(`/books/genre/${encodeURIComponent(genre)}`);
 }
 
 // ===== COLLECTIONS =====
-export async function getCollection() {
+async function getCollection() {
     return await apiRequest('/collections');
 }
 
-export async function addToCollection(bookId) {
+async function addToCollection(bookId) {
     return await apiRequest('/collections', {
         method: 'POST',
         body: JSON.stringify({ bookId })
     });
 }
 
-export async function removeFromCollection(bookId) {
+async function removeFromCollection(bookId) {
     return await apiRequest(`/collections/${bookId}`, {
         method: 'DELETE'
     });
 }
 
-export async function checkInCollection(bookId) {
+async function checkInCollection(bookId) {
     return await apiRequest(`/collections/check/${bookId}`);
 }
 
 // ===== PROGRESS =====
-export async function getProgress() {
+async function getProgress() {
     return await apiRequest('/progress');
 }
 
-export async function updateProgress(bookId, progress, currentPage = null) {
+async function updateProgress(bookId, progress, currentPage = null) {
     return await apiRequest('/progress', {
         method: 'POST',
         body: JSON.stringify({ bookId, progress, currentPage })
@@ -118,32 +141,32 @@ export async function updateProgress(bookId, progress, currentPage = null) {
 }
 
 // ===== PROFILE =====
-export async function getProfile() {
+async function getProfile() {
     return await apiRequest('/profile');
 }
 
-export async function updateProfile(data) {
+async function updateProfile(data) {
     return await apiRequest('/profile', {
         method: 'PUT',
         body: JSON.stringify(data)
     });
 }
 
-export async function getStats() {
+async function getStats() {
     return await apiRequest('/profile/stats');
 }
 
-export async function getNotifications() {
+async function getNotifications() {
     return await apiRequest('/profile/notifications');
 }
 
-export async function markNotificationRead(id) {
+async function markNotificationRead(id) {
     return await apiRequest(`/profile/notifications/${id}`, {
         method: 'PUT'
     });
 }
 
-export async function markAllNotificationsRead() {
+async function markAllNotificationsRead() {
     return await apiRequest('/profile/notifications/read-all', {
         method: 'PUT'
     });

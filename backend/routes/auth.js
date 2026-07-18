@@ -1,13 +1,15 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { db } = require('../server');
+const db = require('../database');  // ← LANGSUNG PAKAI database.js
 const { JWT_SECRET } = require('../middleware/auth');
 
 const router = express.Router();
 
-// REGISTER
+// ===== REGISTER =====
 router.post('/register', async (req, res) => {
+    console.log('📝 Register request received:', req.body.email);
+    
     const { name, email, password, bio, location } = req.body;
 
     if (!name || !email || !password) {
@@ -26,33 +28,47 @@ router.post('/register', async (req, res) => {
             [name, email, hashedPassword, bio || '', location || ''],
             function(err) {
                 if (err) {
+                    console.error('❌ Database error:', err.message);
                     if (err.message.includes('UNIQUE constraint failed')) {
                         return res.status(400).json({ error: 'Email already registered' });
                     }
-                    return res.status(500).json({ error: 'Registration failed' });
+                    return res.status(500).json({ error: 'Registration failed: ' + err.message });
                 }
 
-                // Create default notifications
+                const userId = this.lastID;
+                console.log('✅ User created with ID:', userId);
+
+                // Insert welcome notification
                 db.run(
                     'INSERT INTO notifications (user_id, title, body, icon) VALUES (?, ?, ?, ?)',
-                    [this.lastID, 'Selamat datang! 🎉', `Halo ${name}, selamat bergabung di ReadLib!`, '👋']
+                    [userId, 'Selamat datang! 🎉', `Halo ${name}, selamat bergabung di ReadLib!`, '👋']
                 );
 
-                const token = jwt.sign({ userId: this.lastID }, JWT_SECRET, { expiresIn: '7d' });
+                const token = jwt.sign({ userId: userId }, JWT_SECRET, { expiresIn: '7d' });
+                
                 res.status(201).json({
                     message: 'User registered successfully',
                     token,
-                    user: { id: this.lastID, name, email, bio: bio || '', location: location || '' }
+                    user: { 
+                        id: userId, 
+                        name, 
+                        email, 
+                        bio: bio || '', 
+                        location: location || '' 
+                    }
                 });
             }
         );
     } catch (error) {
-        res.status(500).json({ error: 'Registration failed' });
+        console.error('❌ Register error:', error);
+        res.status(500).json({ error: 'Registration failed: ' + error.message });
     }
 });
 
-// LOGIN
+// ===== LOGIN =====
 router.post('/login', (req, res) => {
+    console.log('🔐 Login request received:', req.body.email);
+    
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -60,15 +76,26 @@ router.post('/login', (req, res) => {
     }
 
     db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
-        if (err || !user) {
+        if (err) {
+            console.error('❌ Database error:', err.message);
+            return res.status(500).json({ error: 'Database error: ' + err.message });
+        }
+        
+        if (!user) {
+            console.log('❌ User not found:', email);
             return res.status(401).json({ error: 'Invalid email or password' });
         }
+
+        console.log('✅ User found:', user.email);
 
         try {
             const isValid = await bcrypt.compare(password, user.password);
             if (!isValid) {
+                console.log('❌ Invalid password for:', email);
                 return res.status(401).json({ error: 'Invalid email or password' });
             }
+
+            console.log('✅ Password verified for:', email);
 
             const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
             
@@ -85,7 +112,8 @@ router.post('/login', (req, res) => {
                 }
             });
         } catch (error) {
-            res.status(500).json({ error: 'Login failed' });
+            console.error('❌ Login error:', error);
+            res.status(500).json({ error: 'Login failed: ' + error.message });
         }
     });
 });

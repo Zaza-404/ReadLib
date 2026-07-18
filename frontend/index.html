@@ -11,19 +11,25 @@
     <div id="root"></div>
 
     <!-- React Libraries -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script>
+    // Import React Hooks
+    const { useState, useEffect, useRef, useCallback, useContext } = React;
+    </script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <!-- JS Modules -->
-    <script type="text/babel" src="js/data/books.js"></script>
-    <script type="text/babel" src="js/utils/icons.js"></script>
-    <script type="text/babel" src="js/utils/constants.js"></script>
+    <!-- JS Modules -->
+     <script type="text/babel" src="js/data/books.js"></script>
+     <script type="text/babel" src="js/utils/icons.js"></script>
+    <script type="text/babel" src="js/utils/api.js"></script>
+    <script type="text/babel" src="js/components/App.js"></script>
     <script type="text/babel" src="js/components/StatusBar.js"></script>
     <script type="text/babel" src="js/components/BottomNav.js"></script>
     <script type="text/babel" src="js/components/BookCover.js"></script>
     <script type="text/babel" src="js/components/SplashScreen.js"></script>
-    <script type="text/babel" src="js/components/OnboardingScreen.js"></script>
+    <script type="text/babel" src="js/components/OnboardingScreen.JS"></script>
     <script type="text/babel" src="js/components/LoginScreen.js"></script>
     <script type="text/babel" src="js/components/RegisterScreen.js"></script>
     <script type="text/babel" src="js/components/HomeScreen.js"></script>
@@ -34,10 +40,9 @@
     <script type="text/babel" src="js/components/BookDetailScreen.js"></script>
     <script type="text/babel" src="js/components/ReaderScreen.js"></script>
     <script type="text/babel" src="js/components/EditProfileScreen.js"></script>
-    <script type="text/babel" src="js/components/SettingsScreen.js"></script>
+    <script type="text/babel" src="js/components/SettingScreen.js"></script>
     <script type="text/babel" src="js/components/NotificationsScreen.js"></script>
     <script type="text/babel" src="js/components/ErrorScreen.js"></script>
-    <script type="text/babel" src="js/App.js"></script>
     <script type="text/babel" src="js/main.js"></script>
 </body>
 </html>
